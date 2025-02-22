@@ -11,7 +11,7 @@ NOCODB_BASE_URL = "https://tables.reachpulse.co"
 
 def insert_in_batches(task_id, orgs, baseName, tableName, bulkRows, api_token):
     total_rows = len(bulkRows)
-    batch_size = 100  # Increased batch size for faster processing
+    batch_size = 1000  # Increased batch size for faster processing
     retries = 3
     retry_delay = 2
 
