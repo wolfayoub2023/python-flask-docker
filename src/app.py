@@ -9,12 +9,11 @@ app = Flask(__name__)
 # In-memory storage for task progress
 tasks = {}
 
-# NocoDB API details (Replace with your actual NocoDB endpoint and token)
+# NocoDB API details (without API token)
 NOCODB_BASE_URL = "https://tables.reachpulse.co"
-NOCODB_API_TOKEN = "hRpuEItIsPneDjl0VtICAtOrJay22i8mJ4mHhFMu"
 
 # Function to simulate bulk data insertion in batches and interact with NocoDB
-def insert_in_batches(task_id, orgs, baseName, tableName, bulkRows):
+def insert_in_batches(task_id, orgs, baseName, tableName, bulkRows, api_token):
     total_rows = len(bulkRows)
     batch_size = 10  # Adjust batch size as needed
     retries = 3  # Number of retries for failed requests
@@ -32,7 +31,7 @@ def insert_in_batches(task_id, orgs, baseName, tableName, bulkRows):
                         f"{NOCODB_BASE_URL}/api/v1/db/data/bulk/{orgs}/{baseName}/{tableName}",
                         headers={
                             'Content-Type': 'application/json',
-                            'xc-token': NOCODB_API_TOKEN
+                            'xc-token': api_token  # Use the token from request headers
                         },
                         json=batch,
                         verify=False
@@ -80,16 +79,19 @@ def insert_bulk():
         baseName = data.get('baseName')
         tableName = data.get('tableName')
         bulkRows = data.get('bulkRows')
-        
+
+        # Get API token from headers
+        api_token = request.headers.get('xc-token')
+
         # Validate required parameters
-        if not all([orgs, baseName, tableName, bulkRows]):
-            return jsonify({"error": "Missing required parameters"}), 400
-        
+        if not all([orgs, baseName, tableName, bulkRows, api_token]):
+            return jsonify({"error": "Missing required parameters or API token"}), 400
+
         task_id = str(int(time.time()))  # Use current timestamp as a task ID
         tasks[task_id] = {'status': 'In Progress', 'progress': 0, 'totalemails': len(bulkRows)}
 
         # Start a background thread for inserting in batches
-        threading.Thread(target=insert_in_batches, args=(task_id, orgs, baseName, tableName, bulkRows)).start()
+        threading.Thread(target=insert_in_batches, args=(task_id, orgs, baseName, tableName, bulkRows, api_token)).start()
 
         return jsonify({
             "taskid": task_id,
